@@ -372,20 +372,48 @@ for(env in 1:Ne){
 }
 
 #LOLO
-#train models at each environment
+#train the model at each environment
 Direct.EBL.175line<-Emergence
 for(env in 1:Ne){
   v<-vigor(DTH[,env],Geno,"EBL",c(0.1,0.1,1,0.1),"cv",-1,Threshold=9,Printinfo=F)
   Direct.EBL.175line[,env]<-Direct.EBL.175line[,env]+v$Prediction$Yhat-1
 }
+#Use GBLUP
+library(rrBLUP)
+Direct.GBLUP.175line<-Emergence
+for(env in 1:Ne){
+  for(foldline in 1:Nline){
+    v<-kinship.BLUP(DTH[-foldline,env],Geno[-foldline,],Geno[foldline,,drop=FALSE])
+    Direct.GBLUP.175line[foldline,env]<-Direct.GBLUP.175line[foldline,env]+v$g.pred+v$beta-1
+  }
+}
+
 
 #LOELO
-#traint models at the environment closed to the target with regards to mean squared difference
+#train the model at the environment closed to the target with regards to mean squared difference
 Direct.EBL.8env.175line<-Emergence
 for(foldenv in 1:Ne){
   v<-vigor(DTH[,Pairedenv[foldenv]],Geno,"EBL",c(0.1,0.1,1,0.1),"cv",-1,Threshold=9,Printinfo=F)
   Direct.EBL.8env.175line[,foldenv]<-Direct.EBL.8env.175line[,foldenv]+v$Prediction$Yhat-1
 }
+#GBLUP
+Direct.GBLUP.8env.175line<-Emergence
+for(foldenv in 1:Ne){
+  for(foldline in 1:Nline){
+    v<-kinship.BLUP(DTH[-foldline,Pairedenv[foldenv]],Geno[-foldline,],Geno[foldline,,drop=FALSE])
+    Direct.GBLUP.8env.175line[foldline,foldenv]<-Direct.GBLUP.8env.175line[foldline,foldenv]+v$g.pred+v$beta-1
+  }
+}
+
+#train the model using all the environments except for the target one
+Direct.EBL.8env.175line.all<-Emergence
+for(foldenv in 1:Ne){
+  w<-apply(DTH[,-foldenv],1,mean,na.rm=T)
+  v<-vigor(w,Geno,"EBL",c(0.1,0.1,1,0.1),"cv",-1,Threshold=9,Printinfo=F)
+  Direct.EBL.8env.175line.all[,foldenv]<-Direct.EBL.8env.175line.all[,foldenv]+v$Prediction$Yhat-1
+}
+
+
 
 
 #Analysis with C-Bay#################################################################################################################################
@@ -821,12 +849,27 @@ apply(abs(Ilog.fitting.EBL[[2]][,Odds]-Heading),2,rmse);rmse(abs(Ilog.fitting.EB
 apply(abs(EBL.fitting[[2]][,Odds]-Heading),2,rmse);rmse(abs(EBL.fitting[[2]][,Odds]-Heading))
 
           #T2007 FO, HN,IG,IK,TN,T2008E,T2008L,T2009 All
-GP      5.751842 6.188219 4.041799 4.180288 6.861392 3.759361 6.584877 5.154746 6.383042 5.583012
+GP(EBL) 5.751842 6.188219 4.041799 4.180288 6.861392 3.759361 6.584877 5.154746 6.383042 5.583012
 C-Nel   4.313035 4.370288 3.080342 2.394773 1.673660 2.289813 2.277608 6.430131 2.809278 3.604109
 C-Bay   4.323090 4.993630 3.413094 2.548988 1.743552 3.560448 1.730771 7.463491 3.314021 4.057269
 T-Nel   6.649932 7.912534 4.662149 4.795203 6.475039 4.184915 6.744526 8.089696 6.857726 6.441621
 T-Bay   6.734831 8.555973 4.936377 4.730700 7.301930 4.837215 7.006085 8.579177 7.809158 6.916799
 IM      4.337125 4.796980 3.451707 2.535122 1.858361 3.209109 2.090527 7.284266 3.007733 3.966844
+
+#Correlation
+diag(cor(cbind(Direct.EBL.fitting,Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Direct.EBL.fitting),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(O.fitting[[2]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(O.fitting[[2]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(Ilog.fitting[[2]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Ilog.fitting[[2]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(O.fitting.EBL[[2]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(O.fitting.EBL[[2]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(Ilog.fitting.EBL[[2]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Ilog.fitting.EBL[[2]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(EBL.fitting[[2]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(EBL.fitting[[2]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+
+GP(EBL) 0.8517118 0.8639958 0.8213335 0.8560473 0.8728057 0.8658527 0.8884947 0.8566027 0.8865676 0.9641027
+C-Nel   0.9757312 0.9666893 0.9108449 0.9684807 0.9939060 0.9510044 0.9917173 0.9471892 0.9879455 0.9853005
+C-Bay   0.9839665 0.9685490 0.8792556 0.9547781 0.9927067 0.9132043 0.9943990 0.9625058 0.9863893 0.9820799
+T-Nel   0.8649093 0.8401366 0.7436821 0.8314384 0.8980867 0.8355793 0.8952710 0.8339637 0.8964494 0.9527208
+T-Bay   0.8518246 0.8363392 0.6989823 0.8376393 0.8832677 0.8065919 0.8754875 0.8352594 0.8794771 0.9458974
+IM      0.9842408 0.9706550 0.8758607 0.9564183 0.9918301 0.9258700 0.9920725 0.9609912 0.9882448 0.9829071
 
 #slope
 coef(lm(Direct.EBL.fitting[1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
@@ -837,7 +880,7 @@ coef(lm(Ilog.fitting.EBL[[2]][,Odds][1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
 coef(lm(EBL.fitting[[2]][,Odds][1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
 
           #intercept slope
-GP      7.648266  0.912508
+GP(EBL) 7.648266  0.912508
 C-Nel   3.4621788 0.9644606
 C-Bay   5.2312039 0.9499395 
 T-Nel   11.758474 0.865609
@@ -859,6 +902,19 @@ C-Bay     5.184045 7.499569 4.361587 3.544756 2.530542 5.015790 4.088655 7.87038
 T-Nel     6.897793 8.626086 5.309934 5.536843 6.525300 4.483453 11.04227 8.547328 7.455169 7.460618
 T-Bay     6.290324 12.00438 5.166759 5.362745 8.818885 5.336007 8.391351 8.016319 10.75105 8.179794
 IM        5.151350 6.809989 4.337664 3.388971 2.366832 4.209842 4.918262 7.867051 4.087416 5.064911
+
+#Correlation
+diag(cor(cbind(O.8env[[Ne+1]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(O.8env[[Ne+1]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(Ilog.8env[[Ne+1]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Ilog.8env[[Ne+1]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(O.8env.EBL[[Ne+1]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(O.8env.EBL[[Ne+1]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(Ilog.8env.EBL[[Ne+1]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Ilog.8env.EBL[[Ne+1]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(EBL.8env[[Ne+1]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(EBL.8env[[Ne+1]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+
+C-Nel     0.9719507 0.9309434 0.8300298 0.9254772 0.9842707 0.8816064 0.8301553 0.9264243 0.9808998 0.9554079
+C-Bay     0.9765378 0.9118053 0.8089838 0.9087498 0.9850775 0.8218225 0.9745260 0.9467602 0.9779346 0.9688601
+T-Nel     0.8705566 0.8129008 0.6860544 0.8192625 0.8947017 0.8153760 0.8297193 0.8194291 0.8859120 0.9376822
+T-Bay     0.8427181 0.6764527 0.6637240 0.8109666 0.8569346 0.7541935 0.8534387 0.7840090 0.8290791 0.9284338
+IM        0.9782243 0.9312717 0.8163727 0.9211442 0.9858751 0.8656501 0.9702318 0.9504344 0.9809385 0.9707253
 
 #slope
 coef(lm(O.8env[[Ne+1]][,Odds][1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
@@ -883,24 +939,42 @@ PlotPredictions("8env.EBL",EBL.8env[[Ne+1]][,Odds],Heading,5.4,5.4,c(50,180),c(5
 #LOLO
 #RMSE
 apply(abs(Direct.EBL.175line-Heading),2,rmse);rmse(abs(Direct.EBL.175line-Heading))
+apply(abs(Direct.GBLUP.175line-Heading),2,rmse);rmse(abs(Direct.GBLUP.175line-Heading))
 apply(abs(O.175line.EBL$DH[,Odds]-Heading),2,rmse);rmse(abs(O.175line.EBL$DH[,Odds]-Heading))
 apply(abs(Ilog.175line.EBL[[2]][,Odds]-Heading),2,rmse);rmse(abs(Ilog.175line.EBL[[2]][,Odds]-Heading))
 apply(abs(EBL.175line[[Nline+1]][,Odds]-Heading),2,rmse);rmse(abs(EBL.175line[[Nline+1]][,Odds]-Heading))
 
             #T2007 FO, HN,IG,IK,TN,T2008E,T2008L,T2009 All
-GP       7.004241 7.898256 6.005174 6.175481 8.549422 5.500601 8.298109 6.715000 7.991629 7.234368
+GP(EBL)  7.004241 7.898256 6.005174 6.175481 8.549422 5.500601 8.298109 6.715000 7.991629 7.234368
+GP(GBLUP)8.119806 8.834194 5.859601 6.311250 9.819537 5.876498 9.803672 7.282159 9.457581 8.125417
 T-Nel    7.600090 9.067325 5.760548 5.860322 8.147434 5.218859 8.295672 8.879240 8.506348 7.653009
 T-Bay    7.646672 9.505308 5.995688 5.907418 8.481263 5.735734 8.213763 9.291981 8.925512 7.914792
 IM       7.310095 8.401885 5.779242 5.774076 7.556609 5.382575 7.731110 9.364695 7.845141 7.385534
 
+#Correlation
+diag(cor(cbind(Direct.EBL.175line,Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Direct.EBL.175line),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(Direct.GBLUP.175line,Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Direct.GBLUP.175line),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(O.175line.EBL$DH[,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(O.175line.EBL$DH[,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(Ilog.175line.EBL[[2]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Ilog.175line.EBL[[2]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(EBL.175line[[Nline+1]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(EBL.175line[[Nline+1]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+
+GP(EBL)  0.7664886 0.7589985 0.4971660 0.6377305 0.7905585 0.6705449 0.8117898 0.7332323 0.8120917 0.9386917
+GP(GBLUP)0.6677940 0.6857005 0.5232147 0.6086272 0.7110097 0.6042871 0.7248922 0.6737922 0.7244150 0.9220058
+T-Nel    0.7859122 0.7289697 0.5905511 0.7025250 0.8177778 0.7081397 0.8251733 0.7206670 0.8117228 0.9316071
+T-Bay    0.7786246 0.7323391 0.5335244 0.6785996 0.8162774 0.6666301 0.8186312 0.7411944 0.8124081 0.9273127
+IM       0.8239809 0.7697239 0.5858065 0.6888753 0.8407786 0.7078637 0.8472258 0.7573428 0.8382437 0.9367182
+
+
 #slope
 coef(lm(Direct.EBL.175line[1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
+coef(lm(Direct.GBLUP.175line[1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
 coef(lm(O.175line.EBL$DH[,Odds][1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
 coef(lm(Ilog.175line.EBL[[2]][,Odds][1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
 coef(lm(EBL.175line[[Nline+1]][,Odds][1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
 
           #intercept slope
-GP        9.9248190 0.8870839
+GP(EBL)   9.9248190 0.8870839
+GP(GBLUP) 12.339631 0.8590028 
 T-Nel     14.012414 0.8391637
 T-Bay     16.195553 0.8182186
 IM        12.276159 0.8681118
@@ -913,24 +987,47 @@ PlotPredictions("175line.EBL",EBL.175line[[Nline+1]][,Odds],Heading,5.4,5.4,c(50
 #LOELO
 #RMSE
 apply(abs(Direct.EBL.8env.175line-Heading),2,rmse);rmse(abs(Direct.EBL.8env.175line-Heading))
+apply(abs(Direct.GBLUP.8env.175line-Heading),2,rmse);rmse(abs(Direct.GBLUP.8env.175line-Heading))
+apply(abs(Direct.EBL.8env.175line.all-Heading),2,rmse);rmse(abs(Direct.EBL.8env.175line.all-Heading))
 apply(abs(O.8env.175line.EBL[[Ne+1]][,Odds]-Heading),2,rmse);rmse(abs(O.8env.175line.EBL[[Ne+1]][,Odds]-Heading))
 apply(abs(Ilog.8env.175line.EBL[[Ne+1]][,Odds]-Heading),2,rmse);rmse(abs(Ilog.8env.175line.EBL[[Ne+1]][,Odds]-Heading))
 apply(abs(EBL.8env.175line[,Odds]-Heading),2,rmse);rmse(abs(EBL.8env.175line[,Odds]-Heading))
 
           #T2007 FO, HN,IG,IK,TN,T2008E,T2008L,T2009 All
-GP        12.12028 11.45454 6.248535 6.477606 8.560917 6.101026 19.63549 9.511743 8.294040 10.70441
+GP(EBL)   12.12028 11.45454 6.248535 6.477606 8.560917 6.101026 19.63549 9.511743 8.294040 10.70441
+GP(GBLUP) 12.81274 12.12216 6.121790 6.554352 9.930074 6.203030 20.23028 9.849496 9.609446 11.28748
+GP(EBLall)9.334922 10.24312 22.18773 21.57753 19.92887 23.33470 38.59920 16.43569 18.82514 21.61225
 T-Nel     7.845091 9.691137 6.106337 6.317408 8.346543 5.373232 12.49272 9.196405 8.888834 8.561136
 T-Bay     7.893107 11.15022 6.420603 6.106978 8.791137 6.438377 8.619152 9.838179 9.570908 8.513949
 IM        7.478246 9.847569 6.142419 5.940836 7.760997 5.730730 8.608967 9.781782 8.635301 7.952053
 
+#Correlation
+diag(cor(cbind(Direct.EBL.8env.175line,Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Direct.EBL.8env.175line),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(Direct.GBLUP.8env.175line,Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Direct.GBLUP.8env.175line),as.vector(Heading),use="pairwise.complete")
+diag(cor(cbind(Direct.EBL.8env.175line.all,Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Direct.EBL.8env.175line.all),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(O.8env.175line.EBL[[Ne+1]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(O.8env.175line.EBL[[Ne+1]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(Ilog.8env.175line.EBL[[Ne+1]][,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(Ilog.8env.175line.EBL[[Ne+1]][,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+diag(cor(cbind(EBL.8env.175line[,Odds],Heading),use="pairwise.complete.obs")[(Ne+1):(2*Ne),1:Ne]);cor(as.vector(EBL.8env.175line[,Odds]),as.vector(Heading),use="pairwise.complete.obs")
+
+GP(EBL)   0.7722683 0.7387117 0.5285189 0.5761220 0.7931362 0.6157740 0.7895968 0.5178414 0.8004131 0.865995
+GP(GBLUP) 0.6804828 0.6695385 0.5171043 0.5625265 0.7073856 0.5850034 0.7114935 0.4645345 0.7180608 0.8493301
+GP(EBLall)0.7050294 0.7256215 0.1914264 0.3705071 0.7205411 0.1909884 0.6772369 0.7026699 0.7064332 0.1058366
+T-Nel     0.7946188 0.6932118 0.5623162 0.6980513 0.8053437 0.6960961 0.7297869 0.7203679 0.8075674 0.9153225
+T-Bay     0.7814412 0.6125401 0.4687062 0.6597623 0.8042389 0.5751763 0.8045015 0.6915893 0.7980271 0.91485
+IM        0.8336310 0.6996155 0.5540926 0.6767816 0.8310955 0.6722134 0.8285574 0.7297034 0.8136272 0.9255645
+
 #slope
 coef(lm(Direct.EBL.8env.175line[1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
+coef(lm(Direct.GBLUP.8env.175line[1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
+coef(lm(Direct.EBL.8env.175line.all[1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
 coef(lm(O.8env.175line.EBL[[Ne+1]][,Odds][1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
 coef(lm(Ilog.8env.175line.EBL[[Ne+1]][,Odds][1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
 coef(lm(EBL.8env.175line[,Odds][1:(Ne*Nline)]~Heading[1:(Ne*Nline)]))
 
           #intercept slope
-GP        19.4053962 0.7537069
+GP(EBL)   19.4053962 0.7537069
+GP(GBLUP) 21.6946366 0.7269076
+GP(EBLall)84.0624633 0.03967358
 T-Nel     17.3575873 0.7913753
 T-Bay     17.4789046 0.7999328
 IM        13.1565906 0.8538354
